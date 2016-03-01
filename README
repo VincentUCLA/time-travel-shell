@@ -1,0 +1,50 @@
+This is a skeleton for CS 111 Lab 1.
+
+Part 1a:
+1.	Data Structure	- stack
+	+	actually a linked list, so I can put some array function on it.
+	+	array function:	find/change/delete data by index.
+	+	I didn't use TA's command_stream implementation but replaced it by a stack
+2.	tokenizer:
+	+	just split by tokens other than word
+	+	eat all the BLANKs
+3.	preprocessor:
+	+	rmComments:
+		-	combine adjacent 2 '|'s or '&'s into "||"s or "&&"s
+		-	delete comments from "#" to "\n" (not included)
+	+	newLine:
+		-	"\" + "\n"					-> ' '
+		-	other than	"\n(" || "\n)"
+				 	 || "\n"+WORD		->	!!!EXCEPTION!!!
+		-	">\n" || "<\n"				->	!!!EXCEPTION!!!
+	 	-	\n + (0+)BLANK + (1+)\n		->	newStream
+	+	split the whole text in according to NEW_CMDSTREAM;
+		-	common cases				-> just split it
+		-	generate new stack of words for each command
+4.	generate command by its stack of words
+	+	generate prototype by stack of words
+		-	words split by OPERATORs ";", "\n", "&&", "||", "|"
+	+	while doing stack operations, you may need to use functions below to generate commands from stack of words
+		-	genSimpleCmd:	words 		=>	SIMPLE_COMMAND
+			+	deal with redirections
+		-	genOptrCmd:		1+ commands	=>	non-SIMPLE_COMMAND
+	+	construct command by stack operations (credit to TA Tuan Le):
+		Maintain 2 stacks: operator and command
+		1.	if a simple command; push it on to command stack 							case WORD:
+		2.	if "(", push into operator stack 											case LEFT_PARENT:
+		3.	if an operator and operator stack is empty 									case OPERATOR:
+			a.	push operator onto operator stack
+		4.	if an operator and stack not empty
+			a.	pop all operators with >= precedence off operator stack
+		    	+	for each operator, pop 2 commands off command stacks
+		    	+	combine into new command, push it onto command stack
+			b.	stop when reach an operator with lower precedence or a "("
+			c.	push new operator onto operator stack
+		5.	if encounter ")", pop operators off stack like 4a until see a matching "(" 	case RIGHT_PARENT:
+			+	create a sub shell command by poping top command from command stack
+			+	push new command to command stack
+		6.	back to 1 																	break;
+		7.	nothing left, pop remaining operators like 4a
+5.	put all commands to the command_stream stack.
+
+my comment: it's not that hard, you just need to work about 40-60hrs.
