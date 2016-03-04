@@ -34,3 +34,6 @@ struct command
     struct command *subshell_command;
   } u;
 };
+
+void command_init(struct command* object);
+typedef struct command command;

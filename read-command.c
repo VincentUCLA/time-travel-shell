@@ -9,115 +9,8 @@
 #define END_OF_FILE "#EOF#"
 #define NEW_CMDSTREAM "#NEW_CMDSTREAM#"
 
-typedef struct stack{
-  int size;
-  struct stack* next;
-  void* data;
-} stack;
-void exception(int index){
-  fprintf(stderr, "Exception encountered at line %d\n", index);
-  exit(1);
-}
-void stack_init(stack* s){
-  s->size = 0;
-  s->next = NULL;
-  s->data = NULL;
-  return;
-}
-void* stack_top(stack* s){
-  stack* cur = s->next;
-  int i;
-  for (i = 0; i<s->size-1; i++)
-    cur = cur->next;
-  return cur->data;
-}
-void stack_push(stack* s, void* data){
-  stack* cur = s;
-  int i;
-  for (i = 0; i<s->size; i++)
-    cur = cur->next;
-  cur->next = (stack *) malloc (sizeof(stack));
-  stack_init(cur->next);
-  cur->next->data = data;
-  s->size++;
-  return;
-}
-void stack_pop(stack* s, int err){
-  stack* cur = s->next;
-  if (s->size <= 0)
-    exception(err);
-  int i;
-  for (i = 0; i<(s->size)-1; i++){
-    cur = cur->next;}
-  free(cur->next);
-  cur->next = NULL;
-  s->size--;
-  return;
-}
-int stack_size(stack* s){return s->size;}
-void* stack_data(stack* s, int index){
-  stack* cur = s->next;
-  int i;
-  if (index>=s->size)
-    exception(index);
-  for (i = 0; i<index; i++)
-    cur = cur->next;
-  return cur->data;
-}
-void stack_change(stack* s, int index, void* data){
-  stack* cur = s->next;
-  int i;
-  if (index>=s->size)
-    exception(index);
-  for (i = 0; i<index; i++)
-    cur = cur->next;
-  free(cur->data);
-  cur->data = data;
-}
-void stack_delete(stack* s, int index){
-  stack* cur = s;
-  int i;
-  if (index>=s->size)
-    exception(index);
-  for (i = 0; i<index; i++)
-    cur = cur->next;
-  free(cur->next->data);
-  stack* temp = cur->next->next;
-  free(cur->next);
-  cur->next = temp;
-  s->size--;
-  return;
-}
-
-typedef enum token_type
-{
-  WORD,
-
-  // operators
-  PIPELINES,
-  AND_LOGIC,
-  OR_LOGIC,
-  SEMICOLON,
-
-  // redirections
-  LEFT_ARROW,
-  RIGHT_ARROW,
-
-  // subshell
-  LEFT_PARENT,
-  RIGHT_PARENT,
-
-  // misc
-  BACKSLASH,
-  COMMENT,
-  NEWLINE,
-  BLANK,
-  ENDOFFILE,
-
-  UNDEFINED
-} token_type;
-
-bool boolWord(char c){
+bool
+boolWord(char c){
   if (   isalpha(c)
     || isdigit(c)
     || c == '!'
@@ -135,7 +28,9 @@ bool boolWord(char c){
   else
     return false;
 }
-bool boolBlank(char c){
+
+bool
+boolBlank(char c){
   switch(c){
   case ' ':
   case '\t':
@@ -145,7 +40,9 @@ bool boolBlank(char c){
     return false;
   }
 }
-bool singleToken(token_type c){
+
+bool
+singleToken(token_type c){
   switch(c){
   case PIPELINES:
   case AND_LOGIC:
@@ -165,7 +62,9 @@ bool singleToken(token_type c){
     return false;
   }
 }
-token_type tokenType(char c){
+
+token_type
+tokenType(char c){
   if (boolWord(c))
     return WORD;
   else if (boolBlank(c))
@@ -197,7 +96,9 @@ token_type tokenType(char c){
       return UNDEFINED;
     }
 }
-token_type wordType(char* c){
+
+token_type
+wordType(char* c){
   if (*c == '|' && *(c+1) == '|' && *(c+2) == '\0')
     return OR_LOGIC;
   else if (*c == '|' && *(c+1) == '\0')
@@ -207,7 +108,9 @@ token_type wordType(char* c){
   else
     return tokenType(*c);
 }
-bool judgeOptr(token_type source){
+
+bool
+judgeOptr(token_type source){
   if (   source == PIPELINES
     || source == LEFT_PARENT
     || source == RIGHT_PARENT
@@ -217,6 +120,7 @@ bool judgeOptr(token_type source){
   else
     return false;
 }
+
 //  TOKENIZER
 stack*
 tokenize( int (*get_next_byte) (void *),
@@ -453,7 +357,8 @@ preprocessing(stack* source){
 }
 
 // command_stream as a linked list (what we call as stack) of COMMANDs
-void command_init(struct command* object){
+void
+command_init(struct command* object){
   object->type = SIMPLE_COMMAND;
   object->status = -1;
   object->input = NULL;
@@ -463,18 +368,18 @@ void command_init(struct command* object){
   object->u.word = NULL;
   object->u.subshell_command = NULL;
 }
-typedef struct command_stream{
-  stack* cmdStack;
-  int cursor;
-} command_stream;
-void command_stream_init(command_stream_t object){
+
+void
+command_stream_init(command_stream_t object){
   object->cmdStack = (stack*) malloc (sizeof(stack));
   stack_init(object->cmdStack);
+  object->depStack = (stack*) malloc (sizeof(stack));
+  stack_init(object->depStack);
   object->cursor = 0;
 }
 
-typedef struct command command;
-int precedenceOptr(token_type source){
+int
+precedenceOptr(token_type source){
   switch (source){
   case SEMICOLON:
   case NEWLINE:
@@ -492,14 +397,16 @@ int precedenceOptr(token_type source){
   }
 }
 
-bool isLetterOrCloseParen(token_type source){
+bool
+isLetterOrCloseParen(token_type source){
   if ((precedenceOptr(source) == -1 && source != LEFT_PARENT) || source == RIGHT_PARENT)
     return true;
   else
     return false;
 }
 
-stack* genPrototype(stack* source){
+stack*
+genPrototype(stack* source){
   stack_push(source, END_OF_FILE);
   int size = stack_size(source);
   //printf("%d\n", size);
@@ -538,7 +445,8 @@ stack* genPrototype(stack* source){
   return ret;
 }
 
-command* genSimpleCmd(stack* source, int lineCount){
+command*
+genSimpleCmd(stack* source, int lineCount){
   command* ret = (command*) malloc (sizeof(command));
   command_init(ret);
   int size = stack_size(source);
@@ -568,7 +476,9 @@ command* genSimpleCmd(stack* source, int lineCount){
   ret->u.word[i] = NULL;
   return ret;
 }
-command* genOptrCmd(token_type operator, command* operand1, command* operand2){
+
+command*
+genOptrCmd(token_type operator, command* operand1, command* operand2){
   struct command* ret = (struct command*) malloc(sizeof(struct command));
   command_init(ret);
   switch(operator){
@@ -601,7 +511,9 @@ command* genOptrCmd(token_type operator, command* operand1, command* operand2){
   }
   return ret;
 }
-void dumpCmd(struct command* cmd, int blank){
+
+void
+dumpCmd(struct command* cmd, int blank){
   if (cmd->type == SIMPLE_COMMAND){
     int j;
     for (j = 0;;j++){
@@ -642,7 +554,9 @@ void dumpCmd(struct command* cmd, int blank){
     return;
   }
 }
-command* genCmd(stack* source){
+
+command*
+genCmd(stack* source){
   stack* command = (stack*) malloc (sizeof(stack));
   stack_init(command);
   stack* operator = (stack*) malloc (sizeof(stack));
@@ -778,6 +692,60 @@ command* genCmd(stack* source){
   return stack_top(command);
 }
 
+stack*
+depStkGen(command_t c){
+  stack* ret = (stack*) malloc (sizeof(stack));
+  stack_init(ret);
+  stack* sstemp = (stack*) malloc (sizeof(stack));
+  stack* temp0 = (stack*) malloc (sizeof(stack));
+  stack* temp1 = (stack*) malloc (sizeof(stack));
+  stack_init(sstemp);
+  stack_init(temp0);
+  stack_init(temp1);
+  int i;
+
+  switch (c->type){
+  case SUBSHELL_COMMAND:
+    sstemp = depStkGen(c->u.subshell_command);
+  case SIMPLE_COMMAND:
+    if (c->input)
+      stack_push(ret, c->input);
+    if (c->output)
+      stack_push(ret, c->output);
+    if (stack_size(sstemp) != 0)
+      for (i = 0; i<stack_size(sstemp); i++)
+        stack_push(ret, stack_data(sstemp, i));
+    break;
+  case AND_COMMAND:
+  case OR_COMMAND:
+  case PIPE_COMMAND:
+  case SEQUENCE_COMMAND:
+    temp0 = depStkGen(c->u.command[0]);
+    temp1 = depStkGen(c->u.command[1]);
+    if (stack_size(temp0) != 0)
+      for (i = 0; i<stack_size(temp0); i++)
+        stack_push(ret, stack_data(temp0, i));
+    if (stack_size(temp1) != 0)
+      for (i = 0; i<stack_size(temp1); i++)
+        stack_push(ret, stack_data(temp1, i));
+    break;
+  default:
+    exception(0);
+    break;
+  }
+  return ret;
+}
+
+int
+depTest (stack* stk1, stack* stk2){
+  int i, j;
+  for (i = 0; i<stack_size(stk1); i++)
+    for (j = 0; j<stack_size(stk2); j++)
+      if (strcmp(stack_data(stk1, i), stack_data(stk2, j)) == 0)
+        return 1;
+  return 0;
+}
+
 command_stream_t
 make_command_stream (int (*get_next_byte) (void *),
           void *get_next_byte_argument)
@@ -799,6 +767,10 @@ make_command_stream (int (*get_next_byte) (void *),
     command* newCmd = genCmd(stk);
     //dumpCmd(newCmd, 0);
     stack_push(ret->cmdStack, newCmd);
+    stack* stkDep;
+    stkDep = depStkGen(newCmd);
+    //printf("%d\n", stack_size(stkDep));
+    stack_push(ret->depStack, stkDep);
   }
   return ret;
 }
